@@ -3,209 +3,787 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Snake</title>
+  <title>Snake Quest</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
+    :root {
+      --bg:       var(--tg-theme-bg-color,           #1c1c1e);
+      --bg2:      var(--tg-theme-secondary-bg-color, #2c2c2e);
+      --text:     var(--tg-theme-text-color,         #ffffff);
+      --hint:     var(--tg-theme-hint-color,         #8e8e93);
+      --accent:   var(--tg-theme-button-color,       #30d158);
+      --accent-t: var(--tg-theme-button-text-color,  #ffffff);
+      --link:     var(--tg-theme-link-color,         #30d158);
+      --danger:   #ff453a;
+      --gold:     #ffd60a;
+    }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      height: 100vh;
-      background: var(--tg-theme-bg-color, #1c1c1e);
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       overflow: hidden;
       touch-action: none;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    #header {
+    .screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 20px;
+      animation: fadeIn 0.25s ease;
+    }
+    .screen.hidden { display: none; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    h1 { font-size: 38px; font-weight: 800; letter-spacing: -0.5px; }
+    h2 { font-size: 17px; font-weight: 600; color: var(--hint); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; align-self: flex-start; }
+
+    .big-btn {
+      width: 100%;
+      max-width: 360px;
+      padding: 18px;
+      border-radius: 14px;
+      border: none;
+      background: var(--accent);
+      color: var(--accent-t);
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.08s, opacity 0.2s;
+      font-family: inherit;
+    }
+    .big-btn:active { transform: scale(0.97); }
+    .big-btn.secondary { background: var(--bg2); color: var(--text); }
+    .big-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ─── Menu ─── */
+    #menu { justify-content: center; gap: 14px; }
+    #menu .hello { color: var(--hint); font-size: 15px; margin-top: -6px; }
+    #menu .badge {
+      background: var(--bg2);
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-size: 14px;
+      color: var(--hint);
+      margin: 8px 0 18px;
+    }
+    #menu .badge b { color: var(--text); font-weight: 700; }
+
+    /* ─── Shop ─── */
+    #shop { padding-top: 16px; overflow-y: auto; align-items: stretch; }
+    #shop header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .back-btn {
+      background: none;
+      border: none;
+      color: var(--link);
+      font-size: 17px;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+    .coin-pill {
+      background: var(--bg2);
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .shop-grid { display: flex; flex-direction: column; gap: 8px; }
+    .shop-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg2);
+      padding: 14px;
+      border-radius: 12px;
+    }
+    .shop-item .icon { font-size: 28px; width: 44px; text-align: center; }
+    .shop-item .info { flex: 1; min-width: 0; }
+    .shop-item .name { font-weight: 600; font-size: 15px; }
+    .shop-item .desc { color: var(--hint); font-size: 12px; margin-top: 2px; }
+    .shop-item .level { display: flex; gap: 3px; margin-top: 6px; }
+    .shop-item .level .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hint); opacity: 0.3; }
+    .shop-item .level .dot.on { background: var(--accent); opacity: 1; }
+    .buy-btn {
+      background: var(--accent);
+      color: var(--accent-t);
+      border: none;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      min-width: 70px;
+    }
+    .buy-btn:disabled { background: var(--bg); color: var(--hint); opacity: 0.6; }
+    .buy-btn.owned { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+    .skin-item .icon { color: var(--accent); }
+
+    /* ─── Game ─── */
+    #gameScreen { padding: 0; }
+    #hud {
       width: 100%;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 16px 6px;
-      color: var(--tg-theme-text-color, #fff);
-    }
-
-    #playerName {
+      padding: 10px 14px;
+      gap: 8px;
       font-size: 13px;
-      opacity: 0.6;
-      flex: 1;
+      font-weight: 600;
     }
-
-    #scoreDisplay {
-      font-size: 22px;
-      font-weight: 700;
-      flex: 1;
-      text-align: center;
+    #hud .lives { color: var(--danger); }
+    #hud .score { font-size: 22px; font-weight: 800; text-align: center; flex: 1; }
+    #hud .right { display: flex; gap: 10px; align-items: center; }
+    #hud .zone-pill { background: var(--bg2); padding: 4px 10px; border-radius: 100px; font-size: 11px; }
+    #hud .pu-pill {
+      background: var(--accent);
+      color: var(--accent-t);
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      display: none;
+      animation: pulse 0.6s infinite alternate;
     }
-
-    #highScoreDisplay {
-      font-size: 13px;
-      opacity: 0.6;
-      flex: 1;
-      text-align: right;
-    }
+    #hud .pu-pill.show { display: inline-flex; align-items: center; gap: 4px; }
+    @keyframes pulse { to { transform: scale(1.06); } }
 
     #canvasWrap {
+      flex: 1;
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex: 1;
-      width: 100%;
       padding: 0 8px 8px;
     }
+    canvas { display: block; border-radius: 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
 
-    canvas {
-      display: block;
-      border-radius: 14px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    /* Zone toast */
+    .zone-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.78);
+      color: white;
+      padding: 18px 30px;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 100;
+      backdrop-filter: blur(8px);
+      animation: zoneToast 2s forwards;
     }
+    @keyframes zoneToast {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+      15%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+      85%  { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+    }
+
+    /* Game over */
+    #gameOverScreen { justify-content: center; gap: 12px; }
+    #gameOverScreen .final-score { font-size: 56px; font-weight: 800; color: var(--accent); }
+    #gameOverScreen .label { color: var(--hint); font-size: 14px; margin-top: -10px; }
+    #gameOverScreen .new-record {
+      background: var(--gold);
+      color: #000;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #gameOverScreen .coins-earned {
+      background: var(--bg2);
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 16px;
+      margin: 14px 0 8px;
+    }
+    #gameOverScreen .coins-earned b { color: var(--gold); }
   </style>
 </head>
 <body>
-  <div id="header">
-    <div id="playerName"></div>
-    <div id="scoreDisplay">0</div>
-    <div id="highScoreDisplay">Best: 0</div>
+  <!-- ─── Menu ─── -->
+  <div class="screen" id="menu">
+    <h1>🐍 Snake Quest</h1>
+    <div class="hello" id="hello">Welcome</div>
+    <div class="badge">Best: <b id="menuBest">0</b> · 🪙 <b id="menuCoins">0</b></div>
+    <button class="big-btn" id="playBtn">▶  Play</button>
+    <button class="big-btn secondary" id="shopBtn">🛒  Shop</button>
   </div>
-  <div id="canvasWrap">
-    <canvas id="gameCanvas"></canvas>
+
+  <!-- ─── Shop ─── -->
+  <div class="screen hidden" id="shop">
+    <header>
+      <button class="back-btn" id="shopBack">← Back</button>
+      <div class="coin-pill">🪙 <span id="shopCoins">0</span></div>
+    </header>
+    <h2>Upgrades</h2>
+    <div class="shop-grid" id="upgradesGrid"></div>
+    <h2>Skins</h2>
+    <div class="shop-grid" id="skinsGrid"></div>
+  </div>
+
+  <!-- ─── Game ─── -->
+  <div class="screen hidden" id="gameScreen">
+    <div id="hud">
+      <div class="lives">❤️ <span id="livesCount">1</span></div>
+      <div class="score" id="scoreCount">0</div>
+      <div class="right">
+        <span class="zone-pill" id="zonePill">🌲 Forest</span>
+        <span class="pu-pill" id="puPill"><span id="puIcon">⚡</span> <span id="puTime">0s</span></span>
+      </div>
+    </div>
+    <div id="canvasWrap"><canvas id="canvas"></canvas></div>
+  </div>
+
+  <!-- ─── Game Over ─── -->
+  <div class="screen hidden" id="gameOverScreen">
+    <h1>Game Over</h1>
+    <div class="final-score" id="finalScore">0</div>
+    <div class="label">Score</div>
+    <div class="new-record" id="newRecord" style="display:none">🏆 New Best!</div>
+    <div class="coins-earned">+<b id="coinsEarned">0</b> 🪙 earned</div>
+    <button class="big-btn" id="retryBtn">▶  Try Again</button>
+    <button class="big-btn secondary" id="menuBtn">🏠  Menu</button>
   </div>
 
   <script>
-    const tg = window.Telegram?.WebApp;
+    // ════════════════════════════════════════════════════════════
+    //   TELEGRAM SDK
+    // ════════════════════════════════════════════════════════════
 
+    const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
       tg.disableVerticalSwipes?.();
     }
 
-    // Theme
-    const t = tg?.themeParams || {};
-    const theme = {
-      bg:        t.bg_color           || '#1c1c1e',
-      text:      t.text_color         || '#ffffff',
-      hint:      t.hint_color         || '#8e8e93',
-      button:    t.button_color       || '#30d158',
-      link:      t.link_color         || '#30d158',
-      secondary: t.secondary_bg_color || '#2c2c2e',
+    const haptic = {
+      light:  () => tg?.HapticFeedback?.impactOccurred?.('light'),
+      med:    () => tg?.HapticFeedback?.impactOccurred?.('medium'),
+      heavy:  () => tg?.HapticFeedback?.impactOccurred?.('heavy'),
+      ok:     () => tg?.HapticFeedback?.notificationOccurred?.('success'),
+      warn:   () => tg?.HapticFeedback?.notificationOccurred?.('warning'),
+      err:    () => tg?.HapticFeedback?.notificationOccurred?.('error'),
     };
 
-    // Player
-    const user = tg?.initDataUnsafe?.user;
-    const playerName = user?.first_name || 'Player';
-    document.getElementById('playerName').textContent = playerName;
+    // ════════════════════════════════════════════════════════════
+    //   CONSTANTS
+    // ════════════════════════════════════════════════════════════
 
-    // Canvas
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
     const GRID = 20;
+    const BASE_SPEED = 160;
+    const ZONE_CHANGE_INTERVAL = 25000;  // ms
+    const POWERUP_SPAWN_MIN    = 12000;
+    const POWERUP_SPAWN_MAX    = 22000;
+    const POWERUP_LIFE         = 9000;   // orb stays on field
+
+    const ZONES = [
+      { id: 'forest', name: 'Forest',   emoji: '🌲', bg: '#1f2e1f', grid: 'rgba(48,209,88,0.08)', rule: null },
+      { id: 'cave',   name: 'Cave',     emoji: '🕯️', bg: '#0c0c10', grid: 'rgba(255,255,255,0.04)', rule: 'dark' },
+      { id: 'space',  name: 'Wormhole', emoji: '🌀', bg: '#0c0c2e', grid: 'rgba(120,120,255,0.10)', rule: 'wrap' },
+    ];
+
+    const POWERUPS = {
+      ghost:  { emoji: '👻', color: '#ba55d3', dur: 8000, label: 'Ghost' },
+      slow:   { emoji: '🐢', color: '#5ac8fa', dur: 7000, label: 'Slow'  },
+      magnet: { emoji: '🧲', color: '#ffd60a', dur: 7000, label: 'Magnet'},
+      bonus:  { emoji: '⭐', color: '#ff9f0a', dur: 0,    label: 'Bonus' }, // spawns bonus food
+    };
+    const PU_KEYS = Object.keys(POWERUPS);
+
+    const SHOP = {
+      upgrades: [
+        { id: 'life',   icon: '❤️', name: 'Extra Life',   desc: 'Continue once after death',  costs: [200, 500, 1000] },
+        { id: 'length', icon: '📏', name: 'Long Start',   desc: '+1 starting body segment',   costs: [80, 160, 320] },
+        { id: 'slow',   icon: '🌀', name: 'Slow Start',   desc: 'Start at 75% speed',         costs: [120] },
+      ],
+      skins: [
+        { id: 'default', icon: '🟢', name: 'Classic',  cost: 0,    color: ['#30d158', '#22a045'] },
+        { id: 'royal',   icon: '🟣', name: 'Royal',    cost: 150,  color: ['#bf5af2', '#7d3eb5'] },
+        { id: 'fire',    icon: '🟠', name: 'Inferno',  cost: 300,  color: ['#ff9f0a', '#cc5500'] },
+        { id: 'ocean',   icon: '🔵', name: 'Ocean',    cost: 500,  color: ['#5ac8fa', '#0a84ff'] },
+        { id: 'gold',    icon: '🟡', name: 'Midas',    cost: 1200, color: ['#ffd60a', '#b8860b'] },
+      ],
+    };
+
+    // ════════════════════════════════════════════════════════════
+    //   STATE
+    // ════════════════════════════════════════════════════════════
+
+    const save = {
+      coins: 0,
+      hs:    0,
+      runs:  0,
+      upgrades: { life: 0, length: 0, slow: 0 },
+      skin:  'default',
+      ownedSkins: ['default'],
+    };
+
+    const game = {
+      snake: [], food: null, bonusFood: null, dir: {x:1,y:0}, nextDir: {x:1,y:0},
+      score: 0, runCoins: 0, lives: 1, livesUsed: 0,
+      speed: BASE_SPEED, zone: ZONES[0], zoneIndex: 0, zoneAt: 0,
+      pu: null,            // active effect: { type, expiresAt }
+      orb: null,           // spawned orb: { type, x, y, expiresAt }
+      orbNextAt: 0,
+      loop: null,
+      lastFoodAt: 0,
+      bonusUntil: 0,
+    };
+
+    let screen = 'menu';
+    const player = tg?.initDataUnsafe?.user?.first_name || 'Player';
+
+    // ════════════════════════════════════════════════════════════
+    //   PERSISTENCE
+    // ════════════════════════════════════════════════════════════
+
+    function loadSave() {
+      return new Promise(res => {
+        if (!tg?.CloudStorage) { res(); return; }
+        tg.CloudStorage.getItems(
+          ['coins', 'hs', 'runs', 'upgrades', 'skin', 'ownedSkins'],
+          (err, vals) => {
+            if (!err && vals) {
+              if (vals.coins)       save.coins = parseInt(vals.coins) || 0;
+              if (vals.hs)          save.hs = parseInt(vals.hs) || 0;
+              if (vals.runs)        save.runs = parseInt(vals.runs) || 0;
+              if (vals.skin)        save.skin = vals.skin;
+              try { if (vals.upgrades)   save.upgrades   = { ...save.upgrades, ...JSON.parse(vals.upgrades) }; } catch {}
+              try { if (vals.ownedSkins) save.ownedSkins = JSON.parse(vals.ownedSkins); } catch {}
+            }
+            res();
+          }
+        );
+      });
+    }
+
+    function persist(key, value) {
+      tg?.CloudStorage?.setItem?.(key, String(value), () => {});
+    }
+    function persistAll() {
+      persist('coins', save.coins);
+      persist('hs', save.hs);
+      persist('runs', save.runs);
+      persist('skin', save.skin);
+      persist('upgrades',   JSON.stringify(save.upgrades));
+      persist('ownedSkins', JSON.stringify(save.ownedSkins));
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //   SCREENS
+    // ════════════════════════════════════════════════════════════
+
+    function show(s) {
+      ['menu', 'shop', 'gameScreen', 'gameOverScreen'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', !(
+          (s === 'menu'     && id === 'menu') ||
+          (s === 'shop'     && id === 'shop') ||
+          (s === 'game'     && id === 'gameScreen') ||
+          (s === 'gameOver' && id === 'gameOverScreen')
+        ));
+      });
+      screen = s;
+      if (tg) tg.MainButton.hide();
+    }
+
+    function renderMenu() {
+      document.getElementById('hello').textContent = `Hi, ${player}!`;
+      document.getElementById('menuBest').textContent  = save.hs;
+      document.getElementById('menuCoins').textContent = save.coins;
+    }
+
+    function renderShop() {
+      document.getElementById('shopCoins').textContent = save.coins;
+
+      const ug = document.getElementById('upgradesGrid');
+      ug.innerHTML = '';
+      SHOP.upgrades.forEach(u => {
+        const lvl = save.upgrades[u.id] || 0;
+        const max = u.costs.length;
+        const maxed = lvl >= max;
+        const cost = maxed ? null : u.costs[lvl];
+        const can = !maxed && save.coins >= cost;
+
+        const dots = Array.from({length: max}, (_, i) => `<span class="dot ${i < lvl ? 'on' : ''}"></span>`).join('');
+
+        const row = document.createElement('div');
+        row.className = 'shop-item';
+        row.innerHTML = `
+          <div class="icon">${u.icon}</div>
+          <div class="info">
+            <div class="name">${u.name}</div>
+            <div class="desc">${u.desc}</div>
+            <div class="level">${dots}</div>
+          </div>
+          <button class="buy-btn" ${can ? '' : 'disabled'}>
+            ${maxed ? 'MAX' : `🪙 ${cost}`}
+          </button>
+        `;
+        row.querySelector('.buy-btn').onclick = () => buyUpgrade(u);
+        ug.appendChild(row);
+      });
+
+      const sg = document.getElementById('skinsGrid');
+      sg.innerHTML = '';
+      SHOP.skins.forEach(s => {
+        const owned = save.ownedSkins.includes(s.id);
+        const selected = save.skin === s.id;
+        const can = !owned && save.coins >= s.cost;
+
+        const row = document.createElement('div');
+        row.className = 'shop-item skin-item';
+        row.innerHTML = `
+          <div class="icon">${s.icon}</div>
+          <div class="info">
+            <div class="name">${s.name}</div>
+            <div class="desc">${owned ? (selected ? 'Selected' : 'Tap to equip') : 'Unlock new look'}</div>
+          </div>
+          <button class="buy-btn ${owned ? 'owned' : ''}" ${owned ? '' : (can ? '' : 'disabled')}>
+            ${owned ? (selected ? '✓ ON' : 'Equip') : `🪙 ${s.cost}`}
+          </button>
+        `;
+        row.querySelector('.buy-btn').onclick = () => owned ? equipSkin(s) : buySkin(s);
+        sg.appendChild(row);
+      });
+    }
+
+    function buyUpgrade(u) {
+      const lvl = save.upgrades[u.id] || 0;
+      if (lvl >= u.costs.length) return;
+      const cost = u.costs[lvl];
+      if (save.coins < cost) return;
+      save.coins -= cost;
+      save.upgrades[u.id] = lvl + 1;
+      haptic.ok();
+      persistAll();
+      renderShop();
+    }
+    function buySkin(s) {
+      if (save.coins < s.cost) return;
+      save.coins -= s.cost;
+      save.ownedSkins.push(s.id);
+      save.skin = s.id;
+      haptic.ok();
+      persistAll();
+      renderShop();
+    }
+    function equipSkin(s) {
+      save.skin = s.id;
+      haptic.light();
+      persistAll();
+      renderShop();
+    }
+
+    function getSkin() {
+      return SHOP.skins.find(s => s.id === save.skin) || SHOP.skins[0];
+    }
+
+    // ════════════════════════════════════════════════════════════
+    //   CANVAS
+    // ════════════════════════════════════════════════════════════
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
     let CELL, SIZE;
 
     function resize() {
       const wrap = document.getElementById('canvasWrap');
       const w = wrap.clientWidth - 16;
       const h = wrap.clientHeight - 8;
-      SIZE = Math.floor(Math.min(w, h) / GRID) * GRID;
+      SIZE = Math.max(200, Math.floor(Math.min(w, h) / GRID) * GRID);
       canvas.width = SIZE;
       canvas.height = SIZE;
       CELL = SIZE / GRID;
     }
 
-    // State
-    let snake, food, dir, nextDir, score, highScore = 0;
-    let state = 'start';
-    let loop;
-
-    function speed() {
-      return Math.max(75, 160 - Math.floor(score / 40) * 10);
+    function rr(x, y, w, h, r) {
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+      else ctx.rect(x, y, w, h);
     }
 
-    function startGame() {
-      snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
-      dir = nextDir = { x: 1, y: 0 };
-      score = 0;
-      document.getElementById('scoreDisplay').textContent = 0;
+    // ════════════════════════════════════════════════════════════
+    //   GAME
+    // ════════════════════════════════════════════════════════════
+
+    function startRun() {
+      resize();
+      const startLen = 3 + (save.upgrades.length || 0);
+      game.snake = [];
+      for (let i = 0; i < startLen; i++) {
+        game.snake.push({ x: 10 - i, y: 10 });
+      }
+      game.dir = game.nextDir = { x: 1, y: 0 };
+      game.score = 0;
+      game.runCoins = 0;
+      game.lives = 1 + (save.upgrades.life || 0);
+      game.livesUsed = 0;
+      game.speed = save.upgrades.slow ? BASE_SPEED * 1.33 : BASE_SPEED;
+      game.zoneIndex = 0;
+      game.zone = ZONES[0];
+      game.zoneAt = performance.now();
+      game.pu = null;
+      game.orb = null;
+      game.orbNextAt = performance.now() + rand(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX);
+      game.bonusFood = null;
+      game.bonusUntil = 0;
       placeFood();
-      state = 'playing';
-      if (tg) tg.MainButton.hide();
-      clearInterval(loop);
-      loop = setInterval(tick, speed());
+      updateHUD();
+      show('game');
+      announceZone(game.zone, false);
+      clearInterval(game.loop);
+      tickLoop();
+      draw();
+    }
+
+    function tickLoop() {
+      clearInterval(game.loop);
+      const spd = game.pu?.type === 'slow' ? game.speed * 1.8 : game.speed;
+      game.loop = setInterval(tick, spd);
     }
 
     function placeFood() {
       let p;
       do {
         p = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
-      } while (snake.some(s => s.x === p.x && s.y === p.y));
-      food = p;
+      } while (game.snake.some(s => s.x === p.x && s.y === p.y) ||
+               (game.orb && game.orb.x === p.x && game.orb.y === p.y));
+      game.food = p;
     }
 
+    function rand(a, b) { return a + Math.random() * (b - a); }
+
     function tick() {
-      dir = nextDir;
-      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+      const now = performance.now();
 
-      // Collision
-      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID ||
-          snake.some(s => s.x === head.x && s.y === head.y)) {
-        die(); return;
+      // Zone change every interval
+      if (now - game.zoneAt > ZONE_CHANGE_INTERVAL) {
+        game.zoneIndex = (game.zoneIndex + 1) % ZONES.length;
+        game.zone = ZONES[game.zoneIndex];
+        game.zoneAt = now;
+        game.runCoins += 5; // zone survival bonus
+        announceZone(game.zone, true);
+        updateHUD();
       }
 
-      snake.unshift(head);
+      // Power-up orb spawning
+      if (!game.orb && now > game.orbNextAt) {
+        spawnOrb();
+      }
+      if (game.orb && now > game.orb.expiresAt) {
+        game.orb = null;
+        game.orbNextAt = now + rand(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX);
+      }
 
-      if (head.x === food.x && head.y === food.y) {
-        score += 10;
-        document.getElementById('scoreDisplay').textContent = score;
-        tg?.HapticFeedback?.impactOccurred('medium');
-        placeFood();
-        clearInterval(loop);
-        loop = setInterval(tick, speed());
+      // Active power-up expiry
+      if (game.pu && now > game.pu.expiresAt) {
+        game.pu = null;
+        tickLoop();
+        updateHUD();
+      }
+      // Bonus food expiry
+      if (game.bonusFood && now > game.bonusUntil) {
+        game.bonusFood = null;
+      }
+
+      // Magnet: pull food toward snake (every few ticks)
+      if (game.pu?.type === 'magnet' && Math.random() < 0.5) {
+        magnetPull();
+      }
+
+      // Movement
+      game.dir = game.nextDir;
+      let head = { x: game.snake[0].x + game.dir.x, y: game.snake[0].y + game.dir.y };
+
+      // Wrap (Wormhole zone or Ghost effect partial — wrap only in space)
+      if (game.zone.rule === 'wrap') {
+        if (head.x < 0)        head.x = GRID - 1;
+        if (head.x >= GRID)    head.x = 0;
+        if (head.y < 0)        head.y = GRID - 1;
+        if (head.y >= GRID)    head.y = 0;
       } else {
-        snake.pop();
+        if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+          handleDeath(); return;
+        }
       }
 
+      // Self-collision (skipped if Ghost active)
+      const selfHit = game.snake.some(s => s.x === head.x && s.y === head.y);
+      if (selfHit && game.pu?.type !== 'ghost') {
+        handleDeath(); return;
+      }
+
+      game.snake.unshift(head);
+
+      // Food
+      let ate = false;
+      if (head.x === game.food.x && head.y === game.food.y) {
+        ate = true;
+        game.score += 10;
+        game.runCoins += 1;
+        haptic.med();
+        placeFood();
+        // small speed increase every 5 foods
+        if (game.score % 50 === 0) {
+          game.speed = Math.max(75, game.speed - 6);
+          tickLoop();
+        }
+      }
+      // Bonus food
+      if (game.bonusFood && head.x === game.bonusFood.x && head.y === game.bonusFood.y) {
+        ate = true;
+        game.score += 50;
+        game.runCoins += 5;
+        game.bonusFood = null;
+        haptic.heavy();
+      }
+      // Orb pickup
+      if (game.orb && head.x === game.orb.x && head.y === game.orb.y) {
+        activatePowerup(game.orb.type);
+        game.orb = null;
+        game.orbNextAt = performance.now() + rand(POWERUP_SPAWN_MIN, POWERUP_SPAWN_MAX);
+      }
+
+      if (!ate) game.snake.pop();
+
+      updateHUD();
       draw();
+    }
+
+    function magnetPull() {
+      // Move food one cell toward snake head (no clash with snake)
+      const h = game.snake[0];
+      const f = game.food;
+      const dx = Math.sign(h.x - f.x), dy = Math.sign(h.y - f.y);
+      const cands = [];
+      if (dx !== 0) cands.push({ x: f.x + dx, y: f.y });
+      if (dy !== 0) cands.push({ x: f.x, y: f.y + dy });
+      for (const c of cands) {
+        if (c.x < 0 || c.x >= GRID || c.y < 0 || c.y >= GRID) continue;
+        if (game.snake.some(s => s.x === c.x && s.y === c.y)) continue;
+        game.food = c;
+        return;
+      }
+    }
+
+    function spawnOrb() {
+      let p;
+      let tries = 0;
+      do {
+        p = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+        tries++;
+      } while ((game.snake.some(s => s.x === p.x && s.y === p.y) ||
+               (game.food && p.x === game.food.x && p.y === game.food.y)) && tries < 30);
+      const type = PU_KEYS[Math.floor(Math.random() * PU_KEYS.length)];
+      game.orb = { type, x: p.x, y: p.y, expiresAt: performance.now() + POWERUP_LIFE };
+    }
+
+    function activatePowerup(type) {
+      haptic.ok();
+      const def = POWERUPS[type];
+      if (type === 'bonus') {
+        // spawn bonus food immediately
+        let p;
+        do {
+          p = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+        } while (game.snake.some(s => s.x === p.x && s.y === p.y) ||
+                 (game.food && p.x === game.food.x && p.y === game.food.y));
+        game.bonusFood = p;
+        game.bonusUntil = performance.now() + 8000;
+        return;
+      }
+      game.pu = { type, expiresAt: performance.now() + def.dur };
+      tickLoop();
+      updateHUD();
+    }
+
+    function handleDeath() {
+      if (game.livesUsed < game.lives - 1) {
+        // use a life
+        game.livesUsed++;
+        haptic.warn();
+        // shrink snake but keep position
+        game.snake = game.snake.slice(0, Math.max(3, Math.floor(game.snake.length / 2)));
+        game.pu = { type: 'ghost', expiresAt: performance.now() + 2000 }; // brief invuln
+        tickLoop();
+        updateHUD();
+        return;
+      }
+      die();
     }
 
     function die() {
-      state = 'dead';
-      clearInterval(loop);
-      tg?.HapticFeedback?.notificationOccurred('error');
+      clearInterval(game.loop);
+      haptic.err();
+      save.runs++;
+      save.coins += game.runCoins;
+      const isNew = game.score > save.hs;
+      if (isNew) save.hs = game.score;
+      persistAll();
 
-      if (score > highScore) {
-        highScore = score;
-        document.getElementById('highScoreDisplay').textContent = `Best: ${highScore}`;
-        tg?.CloudStorage?.setItem('snake_hs', String(highScore), () => {});
-      }
-
-      if (tg) {
-        tg.MainButton.setText('▶  Play Again');
-        tg.MainButton.show();
-      }
-      draw();
+      document.getElementById('finalScore').textContent = game.score;
+      document.getElementById('coinsEarned').textContent = game.runCoins;
+      document.getElementById('newRecord').style.display = isNew ? 'inline-block' : 'none';
+      show('gameOver');
+      if (tg) { tg.MainButton.setText('▶  Try Again'); tg.MainButton.show(); }
     }
 
-    // ── Drawing ────────────────────────────────────────────────
+    function announceZone(zone, withHaptic = true) {
+      if (withHaptic) haptic.light();
+      const existing = document.querySelector('.zone-toast');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.className = 'zone-toast';
+      toast.innerHTML = `${zone.emoji} <b>${zone.name}</b>`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 2000);
+    }
 
-    function rr(x, y, w, h, r) {
-      if (ctx.roundRect) {
-        ctx.roundRect(x, y, w, h, r);
+    function updateHUD() {
+      document.getElementById('livesCount').textContent = (game.lives - game.livesUsed);
+      document.getElementById('scoreCount').textContent = game.score;
+      document.getElementById('zonePill').textContent  = `${game.zone.emoji} ${game.zone.name}`;
+      const puEl = document.getElementById('puPill');
+      if (game.pu && POWERUPS[game.pu.type].dur > 0) {
+        puEl.classList.add('show');
+        document.getElementById('puIcon').textContent = POWERUPS[game.pu.type].emoji;
+        const rem = Math.max(0, Math.ceil((game.pu.expiresAt - performance.now()) / 1000));
+        document.getElementById('puTime').textContent = rem + 's';
       } else {
-        ctx.rect(x, y, w, h);
+        puEl.classList.remove('show');
       }
     }
+
+    // ════════════════════════════════════════════════════════════
+    //   RENDER
+    // ════════════════════════════════════════════════════════════
 
     function draw() {
-      ctx.fillStyle = theme.secondary;
+      // Background
+      ctx.fillStyle = game.zone.bg;
       ctx.fillRect(0, 0, SIZE, SIZE);
 
-      // Grid lines
-      ctx.strokeStyle = theme.hint + '1a';
+      // Grid
+      ctx.strokeStyle = game.zone.grid;
       ctx.lineWidth = 0.5;
       for (let i = 0; i <= GRID; i++) {
         ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, SIZE); ctx.stroke();
@@ -213,94 +791,122 @@
       }
 
       // Food
-      ctx.fillStyle = '#ff453a';
-      ctx.shadowColor = '#ff453a';
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      ctx.arc(food.x * CELL + CELL / 2, food.y * CELL + CELL / 2, CELL / 2 - 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      drawFood(game.food, '#ff453a', 1);
+      if (game.bonusFood) {
+        const pulse = 0.85 + Math.sin(performance.now() / 100) * 0.15;
+        drawFood(game.bonusFood, '#ffd60a', pulse);
+      }
 
-      // Snake body
-      snake.forEach((seg, i) => {
-        ctx.globalAlpha = Math.max(0.35, 1 - (i / snake.length) * 0.65);
-        ctx.fillStyle = i === 0 ? theme.button : theme.link;
+      // Orb
+      if (game.orb) {
+        const def = POWERUPS[game.orb.type];
+        const cx = game.orb.x * CELL + CELL / 2;
+        const cy = game.orb.y * CELL + CELL / 2;
+        const r = CELL / 2 - 2;
+        const pulse = 0.7 + Math.sin(performance.now() / 150) * 0.3;
+
+        ctx.shadowColor = def.color;
+        ctx.shadowBlur = 12 * pulse;
+        ctx.fillStyle = def.color;
         ctx.beginPath();
-        rr(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, i === 0 ? 6 : 3);
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.font = `${CELL * 0.7}px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.emoji, cx, cy + 1);
+      }
+
+      // Snake
+      const skin = getSkin();
+      const isGhost = game.pu?.type === 'ghost';
+      game.snake.forEach((seg, i) => {
+        const head = i === 0;
+        ctx.globalAlpha = isGhost ? 0.5 : Math.max(0.35, 1 - (i / game.snake.length) * 0.6);
+        ctx.fillStyle = head ? skin.color[0] : skin.color[1];
+        ctx.beginPath();
+        rr(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2, head ? 6 : 3);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
 
-      // Eyes on head
-      const h = snake[0];
-      const cx = h.x * CELL, cy = h.y * CELL;
-      const er = Math.max(2, CELL / 9);
-      const eo = CELL * 0.27;
-      ctx.fillStyle = theme.secondary;
-      let e1, e2;
-      if (Math.abs(dir.x) > 0) {
-        e1 = [cx + CELL / 2 + dir.x * eo, cy + eo];
-        e2 = [cx + CELL / 2 + dir.x * eo, cy + CELL - eo];
-      } else {
-        e1 = [cx + eo,        cy + CELL / 2 + dir.y * eo];
-        e2 = [cx + CELL - eo, cy + CELL / 2 + dir.y * eo];
+      // Eyes
+      const h = game.snake[0];
+      if (h) {
+        const cx = h.x * CELL, cy = h.y * CELL;
+        const er = Math.max(2, CELL / 9);
+        const eo = CELL * 0.27;
+        ctx.fillStyle = game.zone.bg;
+        let e1, e2;
+        if (Math.abs(game.dir.x) > 0) {
+          e1 = [cx + CELL / 2 + game.dir.x * eo, cy + eo];
+          e2 = [cx + CELL / 2 + game.dir.x * eo, cy + CELL - eo];
+        } else {
+          e1 = [cx + eo,        cy + CELL / 2 + game.dir.y * eo];
+          e2 = [cx + CELL - eo, cy + CELL / 2 + game.dir.y * eo];
+        }
+        ctx.beginPath(); ctx.arc(e1[0], e1[1], er, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(e2[0], e2[1], er, 0, Math.PI * 2); ctx.fill();
       }
-      ctx.beginPath(); ctx.arc(e1[0], e1[1], er, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(e2[0], e2[1], er, 0, Math.PI * 2); ctx.fill();
 
-      if (state === 'start') drawStart();
-      if (state === 'dead')  drawDead();
+      // Dark zone — vignette around head
+      if (game.zone.rule === 'dark' && h) {
+        const hx = h.x * CELL + CELL / 2;
+        const hy = h.y * CELL + CELL / 2;
+        const radius = CELL * 4.5;
+        const grad = ctx.createRadialGradient(hx, hy, CELL, hx, hy, radius);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(0.7, 'rgba(0,0,0,0.85)');
+        grad.addColorStop(1, 'rgba(0,0,0,0.96)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, SIZE, SIZE);
+      }
     }
 
-    function overlay() {
-      ctx.fillStyle = 'rgba(0,0,0,0.62)';
-      ctx.fillRect(0, 0, SIZE, SIZE);
-    }
-
-    function centeredText(text, y, size, color, bold = false) {
+    function drawFood(f, color, scale = 1) {
+      const cx = f.x * CELL + CELL / 2;
+      const cy = f.y * CELL + CELL / 2;
+      const r = (CELL / 2 - 2) * scale;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
       ctx.fillStyle = color;
-      ctx.font = `${bold ? 'bold ' : ''}${size}px system-ui`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(text, SIZE / 2, y);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
     }
 
-    function drawStart() {
-      overlay();
-      const mid = SIZE / 2;
-      centeredText('🐍 Snake', mid - CELL * 2.8, CELL * 1.7, theme.text, true);
-      centeredText(`Hi, ${playerName}!`, mid - CELL * 0.8, CELL * 0.95, theme.hint);
-      centeredText('Swipe or use arrow keys', mid + CELL * 0.6, CELL * 0.8, theme.hint);
-      centeredText('Tap anywhere to start', mid + CELL * 1.9, CELL * 0.8, theme.hint);
-      if (highScore > 0) {
-        centeredText(`Best: ${highScore}`, mid + CELL * 3.2, CELL * 0.85, theme.button, true);
+    // Continuous redraw for animations (food pulse, orb glow)
+    let rafId;
+    function animLoop() {
+      if (screen === 'game') {
+        draw();
+        updateHUD();
       }
+      rafId = requestAnimationFrame(animLoop);
     }
+    requestAnimationFrame(animLoop);
 
-    function drawDead() {
-      overlay();
-      const mid = SIZE / 2;
-      centeredText('Game Over', mid - CELL * 2.5, CELL * 1.6, '#ff453a', true);
-      centeredText(`Score: ${score}`, mid - CELL * 0.5, CELL * 1.1, theme.text, true);
-      centeredText(`Best: ${highScore}`, mid + CELL * 1.2, CELL * 0.9, theme.button, true);
-    }
+    // ════════════════════════════════════════════════════════════
+    //   INPUT
+    // ════════════════════════════════════════════════════════════
 
-    // ── Input ──────────────────────────────────────────────────
-
-    function handleDir(d) {
-      if (state !== 'playing') { startGame(); return; }
-      if (d.x !== -dir.x || d.y !== -dir.y) nextDir = d;
+    function tryDir(d) {
+      if (d.x !== -game.dir.x || d.y !== -game.dir.y) game.nextDir = d;
     }
 
     document.addEventListener('keydown', e => {
-      const map = {
+      if (screen !== 'game') return;
+      const m = {
         ArrowUp:    { x: 0, y: -1 },
         ArrowDown:  { x: 0, y:  1 },
         ArrowLeft:  { x: -1, y: 0 },
         ArrowRight: { x:  1, y: 0 },
+        w: { x: 0, y: -1 }, s: { x: 0, y: 1 }, a: { x: -1, y: 0 }, d: { x: 1, y: 0 },
       };
-      if (map[e.key]) { e.preventDefault(); handleDir(map[e.key]); }
-      if (e.key === ' ') { e.preventDefault(); if (state !== 'playing') startGame(); }
+      if (m[e.key]) { e.preventDefault(); tryDir(m[e.key]); }
     });
 
     let touch0 = null;
@@ -315,42 +921,37 @@
       const dx = e.changedTouches[0].clientX - touch0.x;
       const dy = e.changedTouches[0].clientY - touch0.y;
       touch0 = null;
-
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-        if (state !== 'playing') startGame();
-        return;
-      }
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       const d = Math.abs(dx) > Math.abs(dy)
         ? (dx > 0 ? { x: 1, y: 0 } : { x: -1, y: 0 })
         : (dy > 0 ? { x: 0, y: 1 } : { x: 0, y: -1 });
-      handleDir(d);
+      tryDir(d);
     }, { passive: false });
 
-    if (tg) tg.onEvent('mainButtonClicked', startGame);
+    // ════════════════════════════════════════════════════════════
+    //   WIRE UI
+    // ════════════════════════════════════════════════════════════
 
-    // ── Boot-──────────────────────────────────────────────────
+    document.getElementById('playBtn').onclick = () => { haptic.light(); startRun(); };
+    document.getElementById('shopBtn').onclick = () => { haptic.light(); renderShop(); show('shop'); };
+    document.getElementById('shopBack').onclick = () => { haptic.light(); renderMenu(); show('menu'); };
+    document.getElementById('retryBtn').onclick = () => { haptic.light(); startRun(); };
+    document.getElementById('menuBtn').onclick = () => { haptic.light(); renderMenu(); show('menu'); };
 
-    function boot() {
-      resize();
-      snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
-      dir = nextDir = { x: 1, y: 0 };
-      food = { x: 15, y: 10 };
-      draw();
-    }
+    if (tg) tg.onEvent('mainButtonClicked', () => {
+      if (screen === 'gameOver') startRun();
+    });
 
-    window.addEventListener('resize', () => { resize(); draw(); });
+    window.addEventListener('resize', () => { if (screen === 'game') resize(); });
 
-    if (tg?.CloudStorage) {
-      tg.CloudStorage.getItem('snake_hs', (err, val) => {
-        if (!err && val) {
-          highScore = parseInt(val) || 0;
-          document.getElementById('highScoreDisplay').textContent = `Best: ${highScore}`;
-        }
-        boot();
-      });
-    } else {
-      boot();
-    }
+    // ════════════════════════════════════════════════════════════
+    //   BOOT
+    // ════════════════════════════════════════════════════════════
+
+    loadSave().then(() => {
+      renderMenu();
+      show('menu');
+    });
   </script>
 </body>
 </html>
